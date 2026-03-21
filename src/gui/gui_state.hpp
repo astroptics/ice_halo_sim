@@ -1,6 +1,7 @@
 #ifndef LUMICE_GUI_STATE_HPP
 #define LUMICE_GUI_STATE_HPP
 
+#include <chrono>
 #include <optional>
 #include <string>
 #include <vector>
@@ -173,6 +174,7 @@ struct GuiState {
   unsigned long stats_sim_ray_num = 0;
   float snapshot_intensity = 0;            // Accumulated intensity for XYZ→RGB normalization
   unsigned long texture_upload_count = 0;  // Cumulative texture uploads (diagnostic counter)
+  std::chrono::steady_clock::time_point last_restart_time{};  // For adaptive upload: time fallback on slow devices
 
   // Last committed config snapshot (for Revert — config fields only, no runtime state)
   struct ConfigSnapshot {

@@ -14,16 +14,14 @@ void ServerPoller::Start(LUMICE_Server* server) {
   // Re-entrant safety: stop existing thread first
   Stop();
 
-  // Selective reset: clear validity flags to prevent stale IDLE (see task-gui-interaction-fix),
-  // but preserve xyz_data buffer to avoid reallocation churn during rapid restarts.
-  // During CommitConfig (Stop→Start), the old poller may have observed a transient IDLE state
-  // and staged it. Setting valid=false prevents SyncFromPoller() from acting on stale data.
-  // Worker thread will overwrite these fields within ~2ms of starting.
+  // Minimal reset: only clear the valid flag to prevent SyncFromPoller() from acting on
+  // a stale IDLE server_state from the previous poller run. Crucially, do NOT clear
+  // has_new_texture or server_state — preserving the last good texture data keeps
+  // the preview on screen during the gap between restart and first new snapshot,
+  // preventing visible flicker during slider scrubbing.
   {
     std::lock_guard<std::mutex> lock(data_mutex_);
     staged_.valid = false;
-    staged_.server_state = LUMICE_SERVER_IDLE;
-    staged_.has_new_texture = false;
   }
   // Reset generation tracking so the new worker detects the first snapshot as new data.
   // This is outside the data_mutex_ because only the Start() caller writes it before
@@ -95,8 +93,12 @@ void ServerPoller::WorkerLoop(LUMICE_Server* server) {
       }
     }
 
-    // If server is idle, simulation is done — exit the polling loop
-    if (server_state == LUMICE_SERVER_IDLE) {
+    // Only exit on IDLE if the server has actually produced valid data.
+    // During restart (CommitConfig → Stop → Start), the server may transiently
+    // report IDLE before simulation threads spin up. Exiting on that transient
+    // IDLE would kill the poller before any texture data is produced, causing
+    // flicker during slider scrubbing.
+    if (server_state == LUMICE_SERVER_IDLE && xyz_results[0].has_valid_data) {
       running_ = false;
       break;
     }

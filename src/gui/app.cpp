@@ -1,5 +1,7 @@
 #include "gui/app.hpp"
 
+#include <chrono>
+
 #include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>  // NOLINT(misc-include-cleaner) — used by logger.hpp macros
 #include <stb_image.h>
@@ -375,6 +377,7 @@ void DoRun() {
     g_state.sim_state = SimState::kSimulating;
     g_state.stats_ray_seg_num = 0;
     g_state.stats_sim_ray_num = 0;
+    g_state.last_restart_time = std::chrono::steady_clock::now();
     g_server_poller.Start(g_server);  // Always restart: restart path stops server briefly
     LOG_INFO("[GUI] DoRun: config committed");
   } else {
@@ -424,8 +427,10 @@ void SyncFromPoller() {
     return;  // Worker hasn't produced data yet
   }
 
-  // Update simulation state
-  if (data.server_state == LUMICE_SERVER_IDLE) {
+  // Only transition to kDone when the simulation has actually processed rays and then stopped.
+  // A transient IDLE during restart (before any rays are consumed) has stats_sim_ray_num == 0,
+  // so it's safely ignored here.
+  if (data.server_state == LUMICE_SERVER_IDLE && data.stats_sim_ray_num > 0) {
     g_state.sim_state = SimState::kDone;
     LOG_INFO("[GUI] Simulation done");
   }
@@ -437,7 +442,14 @@ void SyncFromPoller() {
   }
 
   // Upload XYZ float texture (GL call — must be on main thread).
-  bool upload_ok = data.has_new_texture && g_state.selected_renderer >= 0 && data.snapshot_intensity > 0;
+  // Hold old texture for kTextureHoldMs after restart to skip the earliest sparse snapshots.
+  // This gives the simulation enough time to accumulate rays for a visually decent first frame,
+  // while keeping scrubbing responsive on all devices.
+  auto since_restart = std::chrono::duration_cast<std::chrono::milliseconds>(
+      std::chrono::steady_clock::now() - g_state.last_restart_time).count();
+  bool upload_ok = data.has_new_texture && g_state.selected_renderer >= 0
+      && data.snapshot_intensity > 0
+      && since_restart >= kTextureHoldMs;
   if (upload_ok) {
     LOG_DEBUG("[GUI] SyncFromPoller: texture {}x{}, rays={}, intensity={}", data.texture_width, data.texture_height,
               data.stats_sim_ray_num, data.snapshot_intensity);
