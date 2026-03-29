@@ -23,7 +23,7 @@
 
 namespace {
 
-constexpr int kJpegQuality = 95;
+constexpr int kDefaultJpegQuality = 95;
 constexpr auto kPollInterval = std::chrono::seconds(1);
 
 void PrintUsage(const char* prog_name) {
@@ -33,6 +33,7 @@ void PrintUsage(const char* prog_name) {
             << "\n"
             << "Options:\n"
             << "  -f <file>    Specify the configuration file (required)\n"
+            << "  -q <1-100>   JPEG output quality (default: 95)\n"
             << "  -o <dir>     Output directory for rendered images (default: current directory)\n"
             << "  -v           Verbose output (trace level logging)\n"
             << "  -d           Debug output (debug level logging)\n"
@@ -50,7 +51,7 @@ std::filesystem::path FormatImagePath(const std::filesystem::path& output_dir, i
   return output_dir / oss.str();
 }
 
-void SaveRenderResults(LUMICE_Server* server, const std::filesystem::path& output_dir) {
+void SaveRenderResults(LUMICE_Server* server, const std::filesystem::path& output_dir, int jpeg_quality) {
   LUMICE_RenderResult renders[LUMICE_MAX_RENDER_RESULTS + 1];
   if (LUMICE_GetRenderResults(server, renders, LUMICE_MAX_RENDER_RESULTS) != LUMICE_OK) {
     return;
@@ -59,7 +60,7 @@ void SaveRenderResults(LUMICE_Server* server, const std::filesystem::path& outpu
     auto filepath = FormatImagePath(output_dir, renders[i].renderer_id);
     auto filepath_u8 = filepath.u8string();
     int ok = stbi_write_jpg(filepath_u8.c_str(), renders[i].img_width, renders[i].img_height, 3, renders[i].img_buffer,
-                            kJpegQuality);
+                            jpeg_quality);
     if (ok) {
       std::cout << "Saved: " << filepath_u8 << " (" << renders[i].img_width << "x" << renders[i].img_height << ")\n";
     } else {
@@ -84,6 +85,7 @@ void PrintStats(LUMICE_Server* server) {
 int main(int argc, char** argv) {
   std::filesystem::path config_filename;
   std::filesystem::path output_dir = ".";
+  int jpeg_quality = kDefaultJpegQuality;
   auto log_level = LUMICE_LOG_INFO;
 
   for (int i = 1; i < argc; i++) {
@@ -102,6 +104,18 @@ int main(int argc, char** argv) {
         return 1;
       }
       output_dir = argv[i];
+    } else if (arg == "-q") {
+      if (++i >= argc) {
+        std::cerr << "Error: -q requires an argument\n\n";
+        PrintUsage(argv[0]);
+        return 1;
+      }
+      jpeg_quality = std::stoi(argv[i]);
+      if (jpeg_quality < 1 || jpeg_quality > 100) {
+        std::cerr << "Error: -q value must be between 1 and 100\n\n";
+        PrintUsage(argv[0]);
+        return 1;
+      }
     } else if (arg == "-v") {
       log_level = LUMICE_LOG_VERBOSE;
     } else if (arg == "-d") {
@@ -159,7 +173,7 @@ int main(int argc, char** argv) {
   while (true) {
     std::this_thread::sleep_for(kPollInterval);
 
-    SaveRenderResults(server, output_dir);
+    SaveRenderResults(server, output_dir, jpeg_quality);
     PrintStats(server);
 
     LUMICE_ServerState state{};
@@ -169,7 +183,7 @@ int main(int argc, char** argv) {
   }
 
   // Final fetch after loop exit
-  SaveRenderResults(server, output_dir);
+  SaveRenderResults(server, output_dir, jpeg_quality);
   PrintStats(server);
 
   LUMICE_DestroyServer(server);
