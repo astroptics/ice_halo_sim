@@ -100,7 +100,7 @@ void InitRay_rot(RandomNumberGenerator& rng, const AxisDistribution& crystal_axi
       RandomSampler::SampleSphericalPointsSph(lon_lat);
     }
     float roll = rng.Get(crystal_axis.roll_dist) * math::kDegreeToRad;
-    r.crystal_rot_ = Rotation(axis + 6, roll).Chain(axis + 0, lon_lat[1] - math::kPi_2).Chain(axis + 6, lon_lat[0]);
+    r.crystal_rot_ = Rotation(axis + 6, -roll).Chain(axis + 0, lon_lat[1] - math::kPi_2).Chain(axis + 6, -lon_lat[0]);
   }
 }
 
