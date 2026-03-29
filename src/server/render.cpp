@@ -198,13 +198,13 @@ void DualFisheyeEqualAreaProject(const LensProjParam& p, const float* d, int* xy
     if (d[2] > 0) {
       // Lower semisphere
       xy[0] = static_cast<int>(
-          std::floor(r * std::cos(math::kPi_2 - az) + p.resolution_[0] / 2.0f + 0.5f + short_res / 2.0f));
-      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 - az) + p.resolution_[1] / 2.0f + 0.5f));
+          std::floor(r * std::cos(math::kPi_2 - az) + p.resolution_[0] / 2.0f + short_res / 2.0f));
+      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 - az) + p.resolution_[1] / 2.0f));
     } else {
       // Upper semisphere
       xy[0] = static_cast<int>(
-          std::floor(r * std::cos(math::kPi_2 + az) + p.resolution_[0] / 2.0f + 0.5f - short_res / 2.0f));
-      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 + az) + p.resolution_[1] / 2.0f + 0.5f));
+          std::floor(r * std::cos(math::kPi_2 + az) + p.resolution_[0] / 2.0f - short_res / 2.0f));
+      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 + az) + p.resolution_[1] / 2.0f));
     }
   }
 }
@@ -213,7 +213,7 @@ void DualFisheyeEqualAreaProject(const LensProjParam& p, const float* d, int* xy
 // No visible_range or behind-camera early exit — by design, all directions are projected.
 void DualFisheyeEquidistantProject(const LensProjParam& p, const float* d, int* xy, size_t num = 1) {
   auto short_res = std::min(p.resolution_[0] / 2, p.resolution_[1]);
-  float scale = short_res / 2.0f / math::kPi_4;  // at θ=π/2: r = scale·π/2 = short_res/2
+  float scale = short_res / 2.0f / math::kPi_2;  // at θ=π/2: r = scale·π/2 = short_res/2
 
   for (size_t i = 0; i < num; i++, d += 3, xy += 2) {
     float az = std::atan2(-d[1], -d[0]);
@@ -224,13 +224,13 @@ void DualFisheyeEquidistantProject(const LensProjParam& p, const float* d, int* 
     if (d[2] > 0) {
       // Lower semisphere
       xy[0] = static_cast<int>(
-          std::floor(r * std::cos(math::kPi_2 - az) + p.resolution_[0] / 2.0f + 0.5f + short_res / 2.0f));
-      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 - az) + p.resolution_[1] / 2.0f + 0.5f));
+          std::floor(r * std::cos(math::kPi_2 - az) + p.resolution_[0] / 2.0f + short_res / 2.0f));
+      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 - az) + p.resolution_[1] / 2.0f));
     } else {
       // Upper semisphere
       xy[0] = static_cast<int>(
-          std::floor(r * std::cos(math::kPi_2 + az) + p.resolution_[0] / 2.0f + 0.5f - short_res / 2.0f));
-      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 + az) + p.resolution_[1] / 2.0f + 0.5f));
+          std::floor(r * std::cos(math::kPi_2 + az) + p.resolution_[0] / 2.0f - short_res / 2.0f));
+      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 + az) + p.resolution_[1] / 2.0f));
     }
   }
 }
@@ -250,13 +250,13 @@ void DualFisheyeStereographicProject(const LensProjParam& p, const float* d, int
     if (d[2] > 0) {
       // Lower semisphere
       xy[0] = static_cast<int>(
-          std::floor(r * std::cos(math::kPi_2 - az) + p.resolution_[0] / 2.0f + 0.5f + short_res / 2.0f));
-      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 - az) + p.resolution_[1] / 2.0f + 0.5f));
+          std::floor(r * std::cos(math::kPi_2 - az) + p.resolution_[0] / 2.0f + short_res / 2.0f));
+      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 - az) + p.resolution_[1] / 2.0f));
     } else {
       // Upper semisphere
       xy[0] = static_cast<int>(
-          std::floor(r * std::cos(math::kPi_2 + az) + p.resolution_[0] / 2.0f + 0.5f - short_res / 2.0f));
-      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 + az) + p.resolution_[1] / 2.0f + 0.5f));
+          std::floor(r * std::cos(math::kPi_2 + az) + p.resolution_[0] / 2.0f - short_res / 2.0f));
+      xy[1] = static_cast<int>(std::floor(r * std::sin(math::kPi_2 + az) + p.resolution_[1] / 2.0f));
     }
   }
 }
@@ -287,9 +287,9 @@ void RectangularProject(const LensProjParam& p, const float* d, int* xy, size_t 
       lat = -math::kPi - lat;
     }
 
-    int raw_x = static_cast<int>(std::floor(lon * scale + p.resolution_[0] / 2.0f + 0.5f));
+    int raw_x = static_cast<int>(std::floor(lon * scale + p.resolution_[0] / 2.0f));
     xy[0] = ((raw_x % p.resolution_[0]) + p.resolution_[0]) % p.resolution_[0];
-    xy[1] = static_cast<int>(std::floor(-lat * scale + p.resolution_[1] / 2.0f + 0.5f));
+    xy[1] = static_cast<int>(std::floor(-lat * scale + p.resolution_[1] / 2.0f));
   }
 }
 
